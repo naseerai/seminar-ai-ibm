@@ -390,14 +390,12 @@
   const DEFAULT_PROJECT_ID = "703b98ce-fc2d-4314-8bb0-b72f32706d06";
   const DEFAULT_API_KEY    = "EVJCi9uwHT84HkUoEa63gOHRwnFlWfCgjcOx9_dncF_L";
 
-  const MODEL_ID       = "meta-llama/llama-3-3-70b-instruct";
-  const IAM_URL_DIRECT = "https://iam.cloud.ibm.com/identity/token";
-  const WX_URL_DIRECT  = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2024-05-31";
+  const MODEL_ID = "meta-llama/llama-3-3-70b-instruct";
 
-  // When running via server.js on localhost, use local proxy routes (no CORS issues)
-  const IS_LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
-  const IAM_URL  = IS_LOCAL ? "/proxy/iam"     : IAM_URL_DIRECT;
-  const WX_URL   = IS_LOCAL ? "/proxy/watsonx" : WX_URL_DIRECT;
+  // Always use relative /api/ routes — works on Vercel (production & preview)
+  // and locally via `vercel dev` or `node server.js`
+  const IAM_URL = "/api/iam";
+  const WX_URL  = "/api/watsonx";
 
   // ── DOM refs ──
   const chatInner = document.getElementById("chat-inner");
@@ -442,10 +440,10 @@
       res = await fetch(IAM_URL, { method: "POST", headers, body });
     } catch (e) {
       throw new Error(
-        "Network error reaching IBM IAM. CORS is blocking the request.\n\n" +
-        "✅ Fix: run the included local proxy server:\n" +
-        "   node server.js\n" +
-        "Then open  http://localhost:3000  instead of the file directly."
+        "Network error: could not reach /api/iam.\n\n" +
+        "• On Vercel: make sure the api/ folder is deployed (push to Git and redeploy).\n" +
+        "• Locally: run  node server.js  then open  http://localhost:3000\n" +
+        "• Do NOT open index.html directly as a file:// URL."
       );
     }
 

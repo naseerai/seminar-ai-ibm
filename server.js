@@ -64,9 +64,9 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
-  // Proxy routes
-  if (req.url === "/proxy/iam"       && req.method === "POST") return proxyRequest(IBM_IAM_URL, req, res);
-  if (req.url === "/proxy/watsonx"   && req.method === "POST") return proxyRequest(IBM_WX_URL,  req, res);
+  // Proxy routes — match the same paths used by the Vercel serverless functions
+  if (req.url === "/api/iam"       && req.method === "POST") return proxyRequest(IBM_IAM_URL, req, res);
+  if (req.url === "/api/watsonx"   && req.method === "POST") return proxyRequest(IBM_WX_URL,  req, res);
 
   // Serve index.html and static files
   let filePath = req.url === "/" ? "/index.html" : req.url;
