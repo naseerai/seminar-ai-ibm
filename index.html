@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Seminar Script Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --user-bubble: #1e3a5f;
+      --ai-bubble: #1e2235;
+      --text: #e8eaf6;
+      --muted: #8b91b0;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warn: #f59e0b;
+      --radius: 14px;
+      --font: -apple-system, "Segoe UI", system-ui, sans-serif;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .logo {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+
+    .header-title { font-size: 17px; font-weight: 700; color: var(--text); white-space: nowrap; }
+    .header-sub { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+    .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    .btn-icon {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      transition: color .18s, border-color .18s, background .18s;
+      white-space: nowrap;
+    }
+    .btn-icon:hover { color: var(--text); border-color: var(--accent); background: var(--surface); }
+    .btn-icon svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+    /* ── Config bar ── */
+    #config-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    #config-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+    #config-bar input {
+      flex: 1;
+      min-width: 160px;
+      max-width: 340px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 13px;
+      outline: none;
+      font-family: var(--font);
+      transition: border-color .18s;
+    }
+    #config-bar input:focus { border-color: var(--accent); }
+
+    .config-group { display: flex; align-items: center; gap: 8px; }
+
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--warn); flex-shrink: 0;
+    }
+    .status-dot.ok { background: var(--success); }
+    .status-dot.err { background: var(--error); }
+
+    /* ── Chat area ── */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 0;
+      scroll-behavior: smooth;
+    }
+
+    #chat::-webkit-scrollbar { width: 6px; }
+    #chat::-webkit-scrollbar-track { background: transparent; }
+    #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .chat-inner {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Welcome ── */
+    .welcome {
+      text-align: center;
+      padding: 48px 20px 20px;
+    }
+    .welcome-icon {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      margin: 0 auto 20px;
+    }
+    .welcome h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .welcome p { color: var(--muted); font-size: 14px; line-height: 1.7; max-width: 480px; margin: 0 auto 24px; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: color .18s, border-color .18s;
+    }
+    .chip:hover { color: var(--text); border-color: var(--accent); }
+
+    /* ── Messages ── */
+    .msg { display: flex; gap: 12px; align-items: flex-start; animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .msg.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .msg.user .avatar { background: var(--accent); }
+    .msg.ai .avatar { background: var(--surface2); border: 1px solid var(--border); }
+
+    .bubble {
+      max-width: 78%;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      line-height: 1.75;
+      word-break: break-word;
+      position: relative;
+    }
+    .msg.user .bubble {
+      background: var(--user-bubble);
+      border: 1px solid #2a4d7a;
+      border-top-right-radius: 4px;
+    }
+    .msg.ai .bubble {
+      background: var(--ai-bubble);
+      border: 1px solid var(--border);
+      border-top-left-radius: 4px;
+    }
+
+    .bubble .script-text { white-space: pre-wrap; }
+
+    .bubble-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      gap: 8px;
+    }
+    .word-count { font-size: 11px; color: var(--muted); }
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 4px;
+      transition: color .18s, border-color .18s;
+    }
+    .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+    .copy-btn.copied { color: var(--success); border-color: var(--success); }
+
+    /* ── Error message ── */
+    .msg-error {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #fca5a5;
+      animation: fadeIn .25s ease;
+    }
+    .msg-error svg { flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Typing indicator ── */
+    .typing { display: flex; gap: 12px; align-items: center; animation: fadeIn .2s ease; }
+    .typing .avatar { background: var(--surface2); border: 1px solid var(--border); font-size: 16px; }
+    .dots { display: flex; gap: 5px; padding: 12px 16px; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: var(--radius); border-top-left-radius: 4px; }
+    .dot { width: 7px; height: 7px; background: var(--muted); border-radius: 50%; animation: bounce .9s ease-in-out infinite; }
+    .dot:nth-child(2) { animation-delay: .15s; }
+    .dot:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-7px); } }
+
+    /* ── Input area ── */
+    #input-area {
+      padding: 16px 24px 20px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .input-wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 10px 14px;
+      transition: border-color .2s;
+    }
+    .input-wrap:focus-within { border-color: var(--accent); }
+
+    #prompt {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 14.5px;
+      font-family: var(--font);
+      resize: none;
+      outline: none;
+      max-height: 160px;
+      min-height: 24px;
+      line-height: 1.6;
+    }
+    #prompt::placeholder { color: var(--muted); }
+
+    #send-btn {
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background .18s, opacity .18s;
+    }
+    #send-btn:hover { background: var(--accent-hover); }
+    #send-btn:disabled { opacity: .45; cursor: not-allowed; }
+    #send-btn svg { width: 17px; height: 17px; fill: #fff; }
+
+    .input-hint { text-align: center; font-size: 11.5px; color: var(--muted); margin-top: 8px; max-width: 760px; margin-left: auto; margin-right: auto; }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      header { padding: 12px 16px; }
+      .header-title { font-size: 15px; }
+      .header-sub { display: none; }
+      #config-bar { padding: 8px 16px; }
+      #config-bar input { max-width: 100%; }
+      #input-area { padding: 12px 16px 16px; }
+      .bubble { max-width: 90%; }
+      .chat-inner { padding: 0 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header>
+  <div class="header-left">
+    <div class="logo">🎤</div>
+    <div>
+      <div class="header-title">AI Seminar Script Generator</div>
+      <div class="header-sub">Powered by IBM watsonx.ai</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn-icon" id="clear-btn" title="Clear chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+      </svg>
+      Clear Chat
+    </button>
+  </div>
+</header>
+
+<!-- ══ CONFIG BAR ══ -->
+<div id="config-bar">
+  <div class="status-dot" id="status-dot" title="Config status"></div>
+  <div class="config-group">
+    <label for="cfg-proj">Project ID</label>
+    <input type="text" id="cfg-proj" placeholder="IBM Project ID" autocomplete="off" spellcheck="false" />
+  </div>
+  <div class="config-group">
+    <label for="cfg-key">API Key</label>
+    <input type="password" id="cfg-key" placeholder="IBM API Key" autocomplete="off" spellcheck="false" />
+  </div>
+</div>
+
+<!-- ══ CHAT ══ -->
+<div id="chat">
+  <div class="chat-inner" id="chat-inner">
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">🎤</div>
+      <h2>Seminar Script Generator</h2>
+      <p>Enter any seminar topic or idea below and receive a polished, natural <strong>one-minute speaking script</strong> ready for live delivery.</p>
+      <div class="chips">
+        <span class="chip" onclick="useChip(this)">Introduction to Machine Learning</span>
+        <span class="chip" onclick="useChip(this)">The Future of Renewable Energy</span>
+        <span class="chip" onclick="useChip(this)">Effective Public Speaking Tips</span>
+        <span class="chip" onclick="useChip(this)">Blockchain in Healthcare</span>
+        <span class="chip" onclick="useChip(this)">Mental Health Awareness</span>
+        <span class="chip" onclick="useChip(this)">Climate Change Solutions</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ INPUT ══ -->
+<div id="input-area">
+  <div class="input-wrap">
+    <textarea id="prompt" rows="1" placeholder="Enter a seminar topic or speaking prompt…"></textarea>
+    <button id="send-btn" title="Generate script (Enter)">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+  <div class="input-hint">Press <kbd style="background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:4px;font-size:11px;">Enter</kbd> to generate &nbsp;·&nbsp; <kbd style="background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:4px;font-size:11px;">Shift+Enter</kbd> for new line</div>
+</div>
+
+<script>
+  // ── CONFIGURATION (pre-filled; user can override via the config bar) ──
+  const DEFAULT_PROJECT_ID = "703b98ce-fc2d-4314-8bb0-b72f32706d06";
+  const DEFAULT_API_KEY    = "EVJCi9uwHT84HkUoEa63gOHRwnFlWfCgjcOx9_dncF_L";
+
+  const MODEL_ID       = "meta-llama/llama-3-3-70b-instruct";
+  const IAM_URL_DIRECT = "https://iam.cloud.ibm.com/identity/token";
+  const WX_URL_DIRECT  = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2024-05-31";
+
+  // When running via server.js on localhost, use local proxy routes (no CORS issues)
+  const IS_LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
+  const IAM_URL  = IS_LOCAL ? "/proxy/iam"     : IAM_URL_DIRECT;
+  const WX_URL   = IS_LOCAL ? "/proxy/watsonx" : WX_URL_DIRECT;
+
+  // ── DOM refs ──
+  const chatInner = document.getElementById("chat-inner");
+  const promptEl  = document.getElementById("prompt");
+  const sendBtn   = document.getElementById("send-btn");
+  const clearBtn  = document.getElementById("clear-btn");
+  const cfgProj   = document.getElementById("cfg-proj");
+  const cfgKey    = document.getElementById("cfg-key");
+  const statusDot = document.getElementById("status-dot");
+  const welcome   = document.getElementById("welcome");
+
+  // ── Init config inputs ──
+  cfgProj.value = DEFAULT_PROJECT_ID;
+  cfgKey.value  = DEFAULT_API_KEY;
+  updateStatusDot();
+
+  cfgProj.addEventListener("input", updateStatusDot);
+  cfgKey.addEventListener("input",  updateStatusDot);
+
+  function updateStatusDot() {
+    const ok = cfgProj.value.trim() && cfgKey.value.trim();
+    statusDot.className = "status-dot" + (ok ? " ok" : " err");
+    statusDot.title = ok ? "Configuration ready" : "Missing Project ID or API Key";
+  }
+
+  // ── Token cache ──
+  let cachedToken = null;
+  let tokenExpiry = 0;
+
+  async function getIAMToken() {
+    const now = Date.now();
+    if (cachedToken && now < tokenExpiry) return cachedToken;
+
+    const apiKey = cfgKey.value.trim();
+    if (!apiKey) throw new Error("IBM API Key is not set. Please enter it in the config bar.");
+
+    const body    = `grant_type=urn%3Aibm%3Aparams%3Aoauth%3Agrant-type%3Aapikey&apikey=${encodeURIComponent(apiKey)}`;
+    const headers = { "Content-Type": "application/x-www-form-urlencoded" };
+
+    let res;
+    try {
+      res = await fetch(IAM_URL, { method: "POST", headers, body });
+    } catch (e) {
+      throw new Error(
+        "Network error reaching IBM IAM. CORS is blocking the request.\n\n" +
+        "✅ Fix: run the included local proxy server:\n" +
+        "   node server.js\n" +
+        "Then open  http://localhost:3000  instead of the file directly."
+      );
+    }
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      if (res.status === 400 || res.status === 401) {
+        throw new Error(`Authentication failed (${res.status}): Your IBM API Key appears to be invalid or expired.`);
+      }
+      throw new Error(`IAM token request failed (${res.status}): ${txt.slice(0, 200)}`);
+    }
+
+    const data = await res.json();
+    if (!data.access_token) {
+      throw new Error("IAM response did not contain an access token. Check your API Key.");
+    }
+    cachedToken = data.access_token;
+    tokenExpiry = now + ((data.expires_in || 3600) - 60) * 1000;
+    return cachedToken;
+  }
+
+  async function generateScript(topic) {
+    const projectId = cfgProj.value.trim();
+    if (!projectId) throw new Error("IBM Project ID is not set. Please enter it in the config bar.");
+
+    const token = await getIAMToken();
+
+    const systemPrompt = `You are a professional seminar speech writer. When given a topic, you write a polished, engaging, and natural one-minute seminar speaking script. The script must be approximately 120 to 150 words — suitable for exactly one minute of spoken delivery. Write in first-person, as if the speaker is delivering it live. Use clear transitions, a strong opening hook, a concise body with one or two key points, and a memorable closing statement. Output only the script text with no extra labels, headings, or commentary.`;
+
+    const userMessage = `Write a one-minute seminar speaking script on the following topic: "${topic}"`;
+
+    // Llama 3 chat template
+    const input =
+      `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n` +
+      `${systemPrompt}<|eot_id|>` +
+      `<|start_header_id|>user<|end_header_id|>\n` +
+      `${userMessage}<|eot_id|>` +
+      `<|start_header_id|>assistant<|end_header_id|>\n`;
+
+    const body = {
+      model_id: MODEL_ID,
+      project_id: projectId,
+      input,
+      parameters: {
+        decoding_method: "greedy",
+        max_new_tokens: 350,
+        min_new_tokens: 100,
+        stop_sequences: ["<|eot_id|>", "<|end_of_text|>"],
+        repetition_penalty: 1.1
+      }
+    };
+
+    let res;
+    try {
+      res = await fetch(WX_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+    } catch (networkErr) {
+      throw new Error(
+        "Network error contacting watsonx.ai. Please check your internet connection and try again.\n\n" +
+        "If running from file://, serve the file via a local web server instead."
+      );
+    }
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      if (res.status === 401) throw new Error("Unauthorized (401): Your IBM credentials may be invalid or have insufficient permissions.");
+      if (res.status === 403) throw new Error("Forbidden (403): Check that your Project ID is correct and the API key has access to watsonx.ai.");
+      if (res.status === 404) throw new Error("Not found (404): The model or endpoint could not be found. Check your Project ID and region.");
+      if (res.status === 429) throw new Error("Rate limited (429): Too many requests. Please wait a moment and try again.");
+      let msg = txt.slice(0, 300);
+      try { const j = JSON.parse(txt); msg = j.errors?.[0]?.message || j.message || msg; } catch (_) {}
+      throw new Error(`watsonx.ai API error (${res.status}): ${msg}`);
+    }
+
+    const data = await res.json();
+    const generated = data?.results?.[0]?.generated_text?.trim();
+    if (!generated) throw new Error("The model returned an empty response. Please try again.");
+    return generated;
+  }
+
+  // ── UI helpers ──
+  function hideWelcome() {
+    if (welcome) { welcome.style.display = "none"; }
+  }
+
+  function scrollToBottom() {
+    const chat = document.getElementById("chat");
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function appendUserMsg(text) {
+    hideWelcome();
+    const div = document.createElement("div");
+    div.className = "msg user";
+    div.innerHTML = `
+      <div class="avatar">👤</div>
+      <div class="bubble">${escHtml(text)}</div>`;
+    chatInner.appendChild(div);
+    scrollToBottom();
+  }
+
+  function showTyping() {
+    const div = document.createElement("div");
+    div.className = "typing";
+    div.id = "typing-indicator";
+    div.innerHTML = `
+      <div class="avatar">🤖</div>
+      <div class="dots">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>`;
+    chatInner.appendChild(div);
+    scrollToBottom();
+    return div;
+  }
+
+  function removeTyping() {
+    const el = document.getElementById("typing-indicator");
+    if (el) el.remove();
+  }
+
+  function appendAIMsg(script) {
+    const words = script.trim().split(/\s+/).length;
+    const div = document.createElement("div");
+    div.className = "msg ai";
+    div.innerHTML = `
+      <div class="avatar">🤖</div>
+      <div class="bubble">
+        <div class="script-text">${escHtml(script)}</div>
+        <div class="bubble-footer">
+          <span class="word-count">~${words} words · ~${Math.round(words / 130)} min read aloud</span>
+          <button class="copy-btn" onclick="copyScript(this)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Copy Script
+          </button>
+        </div>
+      </div>`;
+    chatInner.appendChild(div);
+    scrollToBottom();
+  }
+
+  function appendErrorMsg(message) {
+    const div = document.createElement("div");
+    div.className = "msg-error";
+    div.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>${escHtml(message)}</span>`;
+    chatInner.appendChild(div);
+    scrollToBottom();
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  function copyScript(btn) {
+    const text = btn.closest(".bubble").querySelector(".script-text").innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.classList.add("copied");
+      btn.textContent = "✓ Copied!";
+      setTimeout(() => {
+        btn.classList.remove("copied");
+        btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy Script`;
+      }, 2000);
+    }).catch(() => {
+      btn.textContent = "Failed";
+      setTimeout(() => { btn.textContent = "Copy Script"; }, 2000);
+    });
+  }
+
+  function useChip(el) {
+    promptEl.value = el.textContent.trim();
+    promptEl.focus();
+    autoResize();
+  }
+
+  function autoResize() {
+    promptEl.style.height = "auto";
+    promptEl.style.height = Math.min(promptEl.scrollHeight, 160) + "px";
+  }
+
+  function setLoading(state) {
+    sendBtn.disabled = state;
+    promptEl.disabled = state;
+  }
+
+  // ── Main send flow ──
+  async function handleSend() {
+    const topic = promptEl.value.trim();
+    if (!topic) {
+      promptEl.style.borderColor = "var(--error)";
+      setTimeout(() => { promptEl.style.borderColor = ""; }, 1000);
+      return;
+    }
+
+    if (!cfgProj.value.trim() || !cfgKey.value.trim()) {
+      appendErrorMsg("Please enter your IBM Project ID and API Key in the configuration bar at the top.");
+      return;
+    }
+
+    appendUserMsg(topic);
+    promptEl.value = "";
+    autoResize();
+    setLoading(true);
+    const typingEl = showTyping();
+
+    try {
+      const script = await generateScript(topic);
+      removeTyping();
+      appendAIMsg(script);
+    } catch (err) {
+      removeTyping();
+      let msg = err.message || "An unexpected error occurred.";
+      if (!navigator.onLine) msg = "No internet connection. Please check your network and try again.";
+      appendErrorMsg(msg);
+    } finally {
+      setLoading(false);
+      promptEl.focus();
+    }
+  }
+
+  // ── Clear chat ──
+  clearBtn.addEventListener("click", () => {
+    chatInner.innerHTML = "";
+    chatInner.appendChild(welcome);
+    welcome.style.display = "";
+    cachedToken = null;
+    tokenExpiry = 0;
+  });
+
+  // ── Input events ──
+  sendBtn.addEventListener("click", handleSend);
+
+  promptEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  });
+
+  promptEl.addEventListener("input", autoResize);
+</script>
+</body>
+</html>
