@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Seminar Script Generator</title>
+  <title>Agentic AI Seminar Script Generator</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -14,6 +14,7 @@
       --border: #2e3350;
       --accent: #6366f1;
       --accent-hover: #818cf8;
+      --accent-dim: rgba(99,102,241,0.15);
       --user-bubble: #1e3a5f;
       --ai-bubble: #1e2235;
       --text: #e8eaf6;
@@ -21,12 +22,20 @@
       --success: #22c55e;
       --error: #ef4444;
       --warn: #f59e0b;
+      --plan-color: #a78bfa;
+      --draft-color: #38bdf8;
+      --critique-color: #fb923c;
+      --refine-color: #34d399;
+      --research-color: #f472b6;
+      --strategy-color: #a78bfa;
+      --writer-color: #38bdf8;
+      --quality-color: #fb923c;
+      --editor-color: #34d399;
       --radius: 14px;
       --font: -apple-system, "Segoe UI", system-ui, sans-serif;
     }
 
     html, body { height: 100%; }
-
     body {
       font-family: var(--font);
       background: var(--bg);
@@ -42,283 +51,516 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 24px;
+      padding: 12px 20px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
-      gap: 12px;
+      gap: 10px;
+      z-index: 10;
     }
 
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
-
+    .header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
     .logo {
-      width: 36px; height: 36px;
+      width: 34px; height: 34px;
       background: linear-gradient(135deg, var(--accent), #a78bfa);
       border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 18px; flex-shrink: 0;
+      font-size: 17px; flex-shrink: 0;
     }
+    .header-title { font-size: 16px; font-weight: 700; white-space: nowrap; }
+    .header-sub { font-size: 11px; color: var(--muted); white-space: nowrap; }
 
-    .header-title { font-size: 17px; font-weight: 700; color: var(--text); white-space: nowrap; }
-    .header-sub { font-size: 12px; color: var(--muted); white-space: nowrap; }
-
-    .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .header-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
 
     .btn-icon {
       background: var(--surface2);
       border: 1px solid var(--border);
       color: var(--muted);
-      padding: 7px 14px;
+      padding: 6px 12px;
       border-radius: 8px;
-      font-size: 13px;
+      font-size: 12px;
       cursor: pointer;
-      display: flex; align-items: center; gap: 6px;
+      display: flex; align-items: center; gap: 5px;
       transition: color .18s, border-color .18s, background .18s;
       white-space: nowrap;
     }
     .btn-icon:hover { color: var(--text); border-color: var(--accent); background: var(--surface); }
-    .btn-icon svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .btn-icon svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    /* ── Agentic mode toggle ── */
+    .agent-toggle {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; color: var(--muted);
+    }
+    .toggle-switch {
+      position: relative; width: 36px; height: 20px; cursor: pointer;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; transition: .2s;
+    }
+    .toggle-slider::before {
+      content: ""; position: absolute;
+      width: 14px; height: 14px; left: 2px; top: 2px;
+      background: var(--muted); border-radius: 50%; transition: .2s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); background: #fff; }
+    .toggle-label { font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
+    .toggle-label.active { color: var(--accent); font-weight: 600; }
+
+    /* ── Agent Status Bar ── */
+    #agent-status-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 6px 20px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      font-size: 12px;
+      overflow: hidden;
+    }
+    #agent-status-bar.visible { display: flex; }
+    .step-pill {
+      display: flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+      border: 1px solid transparent;
+      opacity: 0.35; transition: opacity .3s;
+    }
+    .step-pill.active { opacity: 1; }
+    .step-pill.done { opacity: 0.7; }
+    .step-pill.plan   { color: var(--plan-color);    border-color: var(--plan-color);    background: rgba(167,139,250,.1); }
+    .step-pill.draft  { color: var(--draft-color);   border-color: var(--draft-color);   background: rgba(56,189,248,.1); }
+    .step-pill.critique { color: var(--critique-color); border-color: var(--critique-color); background: rgba(251,146,60,.1); }
+    .step-pill.refine { color: var(--refine-color);  border-color: var(--refine-color);  background: rgba(52,211,153,.1); }
+    .step-separator { color: var(--border); font-size: 14px; }
+    .step-spinner { width: 10px; height: 10px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
+    .step-pill.active .step-spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Config bar ── */
     #config-bar {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 10px 24px;
+      padding: 8px 20px;
       display: flex;
       gap: 10px;
       align-items: center;
       flex-shrink: 0;
       flex-wrap: wrap;
     }
-
-    #config-bar label { font-size: 12px; color: var(--muted); white-space: nowrap; }
-
+    #config-bar label { font-size: 11px; color: var(--muted); white-space: nowrap; }
     #config-bar input {
-      flex: 1;
-      min-width: 160px;
-      max-width: 340px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 8px;
-      padding: 6px 10px;
-      font-size: 13px;
-      outline: none;
-      font-family: var(--font);
+      flex: 1; min-width: 140px; max-width: 300px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px;
+      padding: 5px 9px; font-size: 12px; outline: none; font-family: var(--font);
       transition: border-color .18s;
     }
     #config-bar input:focus { border-color: var(--accent); }
-
-    .config-group { display: flex; align-items: center; gap: 8px; }
-
-    .status-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--warn); flex-shrink: 0;
-    }
-    .status-dot.ok { background: var(--success); }
+    .config-group { display: flex; align-items: center; gap: 7px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex-shrink: 0; }
+    .status-dot.ok  { background: var(--success); }
     .status-dot.err { background: var(--error); }
+
+    /* ── Settings sidebar ── */
+    #settings-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 100; display: none;
+    }
+    #settings-overlay.open { display: block; }
+    #settings-panel {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: 300px; background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 101; transform: translateX(100%);
+      transition: transform .25s ease;
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+    #settings-panel.open { transform: translateX(0); }
+    .settings-header {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .settings-header h3 { font-size: 15px; font-weight: 700; }
+    .close-settings {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 20px; line-height: 1;
+      padding: 2px; transition: color .15s;
+    }
+    .close-settings:hover { color: var(--text); }
+    .settings-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .settings-section h4 { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+    .radio-group { display: flex; flex-direction: column; gap: 7px; }
+    .radio-item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .radio-item input[type=radio] { accent-color: var(--accent); cursor: pointer; }
+    .radio-item label { font-size: 13px; cursor: pointer; color: var(--text); }
+
+    /* Session panel */
+    #session-panel {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: 280px; background: var(--surface);
+      border-right: 1px solid var(--border);
+      z-index: 101; transform: translateX(-100%);
+      transition: transform .25s ease;
+      display: flex; flex-direction: column;
+    }
+    #session-panel.open { transform: translateX(0); }
+    #session-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 100; display: none;
+    }
+    #session-overlay.open { display: block; }
+    .session-header {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .session-header h3 { font-size: 14px; font-weight: 700; }
+    .session-actions { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--border); }
+    .session-btn {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 8px 12px; border-radius: 8px;
+      font-size: 12px; cursor: pointer; text-align: left;
+      transition: border-color .15s; display: flex; align-items: center; gap: 7px;
+    }
+    .session-btn:hover { border-color: var(--accent); }
+    .session-list { flex: 1; overflow-y: auto; padding: 10px 16px; }
+    .session-list h4 { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+    .session-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 10px; border-radius: 8px; cursor: pointer;
+      transition: background .15s; gap: 8px;
+    }
+    .session-item:hover { background: var(--surface2); }
+    .session-item-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .session-item-date { font-size: 10px; color: var(--muted); white-space: nowrap; }
+    .session-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px; transition: color .15s; }
+    .session-del:hover { color: var(--error); }
 
     /* ── Chat area ── */
     #chat {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px 0;
-      scroll-behavior: smooth;
+      flex: 1; overflow-y: auto; padding: 20px 0; scroll-behavior: smooth;
     }
-
-    #chat::-webkit-scrollbar { width: 6px; }
+    #chat::-webkit-scrollbar { width: 5px; }
     #chat::-webkit-scrollbar-track { background: transparent; }
     #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
     .chat-inner {
-      max-width: 760px;
-      margin: 0 auto;
+      max-width: 760px; margin: 0 auto;
       padding: 0 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
+      display: flex; flex-direction: column; gap: 18px;
     }
 
     /* ── Welcome ── */
-    .welcome {
-      text-align: center;
-      padding: 48px 20px 20px;
-    }
+    .welcome { text-align: center; padding: 40px 20px 16px; }
     .welcome-icon {
-      width: 64px; height: 64px;
+      width: 60px; height: 60px;
       background: linear-gradient(135deg, var(--accent), #a78bfa);
-      border-radius: 18px;
+      border-radius: 16px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 32px;
-      margin: 0 auto 20px;
+      font-size: 28px; margin: 0 auto 16px;
     }
-    .welcome h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-    .welcome p { color: var(--muted); font-size: 14px; line-height: 1.7; max-width: 480px; margin: 0 auto 24px; }
-
-    .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .welcome h2 { font-size: 20px; font-weight: 700; margin-bottom: 7px; }
+    .welcome p { color: var(--muted); font-size: 13px; line-height: 1.7; max-width: 460px; margin: 0 auto 20px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
     .chip {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 7px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      cursor: pointer;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted); padding: 6px 13px;
+      border-radius: 20px; font-size: 12px; cursor: pointer;
       transition: color .18s, border-color .18s;
     }
     .chip:hover { color: var(--text); border-color: var(--accent); }
 
+    /* ── Agentic features info cards ── */
+    .feature-cards {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      max-width: 480px; margin: 20px auto 0;
+    }
+    .feature-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px;
+      font-size: 12px; color: var(--muted); text-align: left;
+    }
+    .feature-card span { display: block; font-weight: 600; color: var(--text); margin-bottom: 3px; font-size: 12px; }
+
     /* ── Messages ── */
-    .msg { display: flex; gap: 12px; align-items: flex-start; animation: fadeIn .25s ease; }
+    .msg { display: flex; gap: 10px; align-items: flex-start; animation: fadeIn .25s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
     .msg.user { flex-direction: row-reverse; }
-
     .avatar {
-      width: 34px; height: 34px; border-radius: 50%;
+      width: 32px; height: 32px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 16px; flex-shrink: 0;
+      font-size: 15px; flex-shrink: 0;
     }
     .msg.user .avatar { background: var(--accent); }
-    .msg.ai .avatar { background: var(--surface2); border: 1px solid var(--border); }
-
+    .msg.ai .avatar   { background: var(--surface2); border: 1px solid var(--border); }
     .bubble {
-      max-width: 78%;
-      padding: 12px 16px;
-      border-radius: var(--radius);
-      font-size: 14px;
-      line-height: 1.75;
-      word-break: break-word;
-      position: relative;
+      max-width: 78%; padding: 11px 15px;
+      border-radius: var(--radius); font-size: 14px;
+      line-height: 1.75; word-break: break-word; position: relative;
     }
-    .msg.user .bubble {
-      background: var(--user-bubble);
-      border: 1px solid #2a4d7a;
-      border-top-right-radius: 4px;
-    }
-    .msg.ai .bubble {
-      background: var(--ai-bubble);
-      border: 1px solid var(--border);
-      border-top-left-radius: 4px;
-    }
-
+    .msg.user .bubble { background: var(--user-bubble); border: 1px solid #2a4d7a; border-top-right-radius: 4px; }
+    .msg.ai .bubble   { background: var(--ai-bubble); border: 1px solid var(--border); border-top-left-radius: 4px; }
     .bubble .script-text { white-space: pre-wrap; }
 
-    .bubble-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 10px;
-      padding-top: 8px;
-      border-top: 1px solid var(--border);
-      gap: 8px;
+    /* Agentic badge on AI messages */
+    .agent-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 600; color: var(--refine-color);
+      background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.3);
+      padding: 2px 7px; border-radius: 10px; margin-bottom: 8px;
     }
-    .word-count { font-size: 11px; color: var(--muted); }
-    .copy-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      cursor: pointer;
+
+    /* Bubble footer */
+    .bubble-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 10px; padding-top: 8px;
+      border-top: 1px solid var(--border); gap: 8px; flex-wrap: wrap;
+    }
+    .meta-info { display: flex; gap: 10px; flex-wrap: wrap; }
+    .meta-tag { font-size: 11px; color: var(--muted); }
+    .meta-tag span { color: var(--text); font-weight: 500; }
+    .bubble-actions { display: flex; gap: 5px; }
+    .action-btn {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      padding: 3px 9px; border-radius: 6px; font-size: 11px; cursor: pointer;
       display: flex; align-items: center; gap: 4px;
       transition: color .18s, border-color .18s;
     }
-    .copy-btn:hover { color: var(--text); border-color: var(--accent); }
-    .copy-btn.copied { color: var(--success); border-color: var(--success); }
+    .action-btn:hover { color: var(--text); border-color: var(--accent); }
+    .action-btn.copied { color: var(--success); border-color: var(--success); }
+
+    /* Readability badge */
+    .readability {
+      font-size: 10px; padding: 2px 7px; border-radius: 8px; font-weight: 600;
+    }
+    .readability.simple   { background: rgba(34,197,94,.12);  color: var(--success); }
+    .readability.moderate { background: rgba(245,158,11,.12); color: var(--warn); }
+    .readability.advanced { background: rgba(239,68,68,.12);  color: var(--error); }
 
     /* ── Error message ── */
     .msg-error {
-      display: flex; align-items: flex-start; gap: 10px;
-      background: rgba(239,68,68,.1);
-      border: 1px solid rgba(239,68,68,.3);
-      border-radius: var(--radius);
-      padding: 12px 16px;
-      font-size: 13px;
-      color: #fca5a5;
-      animation: fadeIn .25s ease;
+      display: flex; align-items: flex-start; gap: 9px;
+      background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+      border-radius: var(--radius); padding: 11px 14px;
+      font-size: 13px; color: #fca5a5; animation: fadeIn .25s ease;
     }
-    .msg-error svg { flex-shrink: 0; margin-top: 1px; }
 
     /* ── Typing indicator ── */
-    .typing { display: flex; gap: 12px; align-items: center; animation: fadeIn .2s ease; }
-    .typing .avatar { background: var(--surface2); border: 1px solid var(--border); font-size: 16px; }
-    .dots { display: flex; gap: 5px; padding: 12px 16px; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: var(--radius); border-top-left-radius: 4px; }
+    .typing { display: flex; gap: 10px; align-items: center; animation: fadeIn .2s ease; }
+    .typing .avatar { background: var(--surface2); border: 1px solid var(--border); }
+    .dots {
+      display: flex; gap: 5px; padding: 11px 14px;
+      background: var(--ai-bubble); border: 1px solid var(--border);
+      border-radius: var(--radius); border-top-left-radius: 4px;
+    }
     .dot { width: 7px; height: 7px; background: var(--muted); border-radius: 50%; animation: bounce .9s ease-in-out infinite; }
     .dot:nth-child(2) { animation-delay: .15s; }
     .dot:nth-child(3) { animation-delay: .3s; }
     @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-7px); } }
 
+    /* ── Slash command chips ── */
+    .cmd-chips {
+      display: flex; gap: 5px; flex-wrap: wrap;
+      padding: 6px 0 2px;
+    }
+    .cmd-chip {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--accent); padding: 3px 10px; border-radius: 12px;
+      font-size: 11px; cursor: pointer; font-weight: 600;
+      transition: border-color .15s, background .15s;
+      font-family: monospace;
+    }
+    .cmd-chip:hover { border-color: var(--accent); background: var(--accent-dim); }
+
     /* ── Input area ── */
     #input-area {
-      padding: 16px 24px 20px;
-      background: var(--bg);
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
+      padding: 12px 20px 16px;
+      background: var(--bg); border-top: 1px solid var(--border); flex-shrink: 0;
     }
-
     .input-wrap {
-      max-width: 760px;
-      margin: 0 auto;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      display: flex;
-      align-items: flex-end;
-      gap: 8px;
-      padding: 10px 14px;
+      max-width: 760px; margin: 0 auto;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; display: flex;
+      align-items: flex-end; gap: 7px; padding: 9px 12px;
       transition: border-color .2s;
     }
     .input-wrap:focus-within { border-color: var(--accent); }
-
     #prompt {
-      flex: 1;
-      background: transparent;
-      border: none;
-      color: var(--text);
-      font-size: 14.5px;
-      font-family: var(--font);
-      resize: none;
-      outline: none;
-      max-height: 160px;
-      min-height: 24px;
-      line-height: 1.6;
+      flex: 1; background: transparent; border: none; color: var(--text);
+      font-size: 14px; font-family: var(--font); resize: none; outline: none;
+      max-height: 140px; min-height: 22px; line-height: 1.6;
     }
     #prompt::placeholder { color: var(--muted); }
-
     #send-btn {
-      width: 38px; height: 38px;
-      border-radius: 10px;
-      background: var(--accent);
-      border: none;
-      cursor: pointer;
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--accent); border: none; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      transition: background .18s, opacity .18s;
+      flex-shrink: 0; transition: background .18s, opacity .18s;
     }
     #send-btn:hover { background: var(--accent-hover); }
-    #send-btn:disabled { opacity: .45; cursor: not-allowed; }
-    #send-btn svg { width: 17px; height: 17px; fill: #fff; }
-
-    .input-hint { text-align: center; font-size: 11.5px; color: var(--muted); margin-top: 8px; max-width: 760px; margin-left: auto; margin-right: auto; }
+    #send-btn:disabled { opacity: .4; cursor: not-allowed; }
+    #send-btn svg { width: 16px; height: 16px; fill: #fff; }
+    .input-bottom {
+      max-width: 760px; margin: 6px auto 0;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .input-hint { font-size: 11px; color: var(--muted); }
+    kbd { background: var(--surface2); border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; font-size: 10px; }
 
     /* ── Responsive ── */
     @media (max-width: 600px) {
-      header { padding: 12px 16px; }
-      .header-title { font-size: 15px; }
-      .header-sub { display: none; }
-      #config-bar { padding: 8px 16px; }
-      #config-bar input { max-width: 100%; }
-      #input-area { padding: 12px 16px 16px; }
+      header { padding: 10px 14px; }
+      .header-title { font-size: 14px; }
+      .header-sub, .toggle-label { display: none; }
+      #config-bar { padding: 7px 14px; }
+      #input-area { padding: 10px 14px 14px; }
       .bubble { max-width: 90%; }
-      .chat-inner { padding: 0 14px; }
+      .chat-inner { padding: 0 12px; }
+      #settings-panel { width: 260px; }
+      #session-panel { width: 240px; }
+      .feature-cards { grid-template-columns: 1fr; }
     }
+
+    /* ══ MULTI-AGENT WORKSPACE ══ */
+    .agent-workspace {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      animation: fadeIn .25s ease;
+    }
+    .agent-workspace-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      background: linear-gradient(90deg, rgba(99,102,241,.12), rgba(167,139,250,.08));
+      border-bottom: 1px solid var(--border);
+    }
+    .agent-workspace-title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 700; color: var(--text);
+    }
+    .agent-workspace-toggle {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 12px; padding: 2px 6px;
+      border-radius: 4px; transition: color .15s;
+    }
+    .agent-workspace-toggle:hover { color: var(--text); }
+
+    /* Agent Grid */
+    .agent-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0; border-bottom: 1px solid var(--border);
+    }
+    .agent-card {
+      padding: 12px 14px;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      position: relative; overflow: hidden;
+      transition: background .2s;
+    }
+    .agent-card:nth-child(2n) { border-right: none; }
+    .agent-card.full-width { grid-column: 1 / -1; border-right: none; }
+    .agent-card.running { background: rgba(99,102,241,.04); }
+    .agent-card.done    { background: rgba(52,211,153,.03); }
+    .agent-card.error   { background: rgba(239,68,68,.05); }
+
+    /* Agent card progress bar */
+    .agent-card::after {
+      content: ""; position: absolute; bottom: 0; left: 0; height: 2px;
+      background: currentColor; width: 0%; transition: width .4s ease;
+    }
+    .agent-card.running::after { width: 60%; animation: progress 1.5s ease-in-out infinite alternate; }
+    .agent-card.done::after    { width: 100%; color: var(--success); }
+    @keyframes progress { from { width: 15%; } to { width: 85%; } }
+
+    .agent-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .agent-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0; border: 1px solid var(--border);
+    }
+    .agent-name-row { flex: 1; min-width: 0; }
+    .agent-name { font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .agent-role { font-size: 10px; color: var(--muted); }
+
+    .agent-status-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 7px;
+      border-radius: 8px; white-space: nowrap; flex-shrink: 0;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .agent-status-badge.idle     { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .agent-status-badge.running  { background: rgba(99,102,241,.15); color: var(--accent); border: 1px solid rgba(99,102,241,.3); }
+    .agent-status-badge.done     { background: rgba(34,197,94,.12); color: var(--success); border: 1px solid rgba(34,197,94,.3); }
+    .agent-status-badge.error    { background: rgba(239,68,68,.12); color: var(--error); border: 1px solid rgba(239,68,68,.3); }
+    .agent-status-badge.parallel { background: rgba(244,114,182,.12); color: var(--research-color); border: 1px solid rgba(244,114,182,.3); }
+    .badge-spinner { width: 8px; height: 8px; border: 1.5px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+
+    /* Agent output */
+    .agent-output {
+      font-size: 11.5px; color: var(--muted); line-height: 1.6;
+      max-height: 0; overflow: hidden;
+      transition: max-height .35s ease, opacity .25s ease;
+      opacity: 0;
+    }
+    .agent-output.visible { max-height: 200px; opacity: 1; overflow-y: auto; }
+    .agent-output.visible::-webkit-scrollbar { width: 3px; }
+    .agent-output.visible::-webkit-scrollbar-thumb { background: var(--border); }
+    .agent-output-text { white-space: pre-wrap; color: var(--text); font-size: 11px; }
+
+    /* Parallel badge */
+    .parallel-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 9px; font-weight: 700; color: var(--research-color);
+      background: rgba(244,114,182,.1); border: 1px solid rgba(244,114,182,.25);
+      padding: 1px 6px; border-radius: 6px; margin-left: 6px;
+      text-transform: uppercase; letter-spacing: .03em;
+    }
+
+    /* Workflow connector */
+    .workflow-connector {
+      display: flex; align-items: center; justify-content: center;
+      padding: 6px 0; border-bottom: 1px solid var(--border);
+      gap: 6px; font-size: 11px; color: var(--muted);
+    }
+    .connector-line { flex: 1; height: 1px; background: var(--border); max-width: 80px; }
+    .connector-arrow { color: var(--accent); font-size: 12px; }
+
+    /* Final result inside workspace */
+    .agent-result {
+      padding: 14px;
+    }
+    .agent-result-label {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 11px; font-weight: 700; color: var(--editor-color);
+      text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px;
+    }
+    .result-divider { flex: 1; height: 1px; background: rgba(52,211,153,.2); }
+    .agent-script-text { white-space: pre-wrap; font-size: 14px; line-height: 1.75; color: var(--text); }
+    .agent-result-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 12px; padding-top: 10px;
+      border-top: 1px solid var(--border); flex-wrap: wrap; gap: 8px;
+    }
+
+    /* Agent color themes */
+    .agent-card.research .agent-avatar { background: rgba(244,114,182,.15); border-color: rgba(244,114,182,.3); }
+    .agent-card.strategy .agent-avatar { background: rgba(167,139,250,.15); border-color: rgba(167,139,250,.3); }
+    .agent-card.writer   .agent-avatar { background: rgba(56,189,248,.15);  border-color: rgba(56,189,248,.3); }
+    .agent-card.quality  .agent-avatar { background: rgba(251,146,60,.15);  border-color: rgba(251,146,60,.3); }
+    .agent-card.editor   .agent-avatar { background: rgba(52,211,153,.15);  border-color: rgba(52,211,153,.3); }
+    .agent-card.research .agent-name { color: var(--research-color); }
+    .agent-card.strategy .agent-name { color: var(--strategy-color); }
+    .agent-card.writer   .agent-name { color: var(--writer-color); }
+    .agent-card.quality  .agent-name { color: var(--quality-color); }
+    .agent-card.editor   .agent-name { color: var(--editor-color); }
   </style>
 </head>
 <body>
@@ -328,19 +570,56 @@
   <div class="header-left">
     <div class="logo">🎤</div>
     <div>
-      <div class="header-title">AI Seminar Script Generator</div>
-      <div class="header-sub">Powered by IBM watsonx.ai</div>
+      <div class="header-title">Agentic AI Script Generator</div>
+      <div class="header-sub">Powered by IBM watsonx.ai · Llama 3.3 70B</div>
     </div>
   </div>
   <div class="header-actions">
+    <!-- Agentic toggle -->
+    <div class="agent-toggle">
+      <label class="toggle-switch" title="Toggle agentic Plan→Draft→Critique→Refine pipeline">
+        <input type="checkbox" id="agent-toggle-input" checked />
+        <span class="toggle-slider"></span>
+      </label>
+      <span class="toggle-label active" id="toggle-label">🤖 Agentic</span>
+    </div>
+    <button class="btn-icon" id="session-btn" title="Sessions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Sessions
+    </button>
+    <button class="btn-icon" id="settings-btn" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </button>
     <button class="btn-icon" id="clear-btn" title="Clear chat">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-      </svg>
-      Clear Chat
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Clear
     </button>
   </div>
 </header>
+
+<!-- ══ AGENT STATUS BAR ══ -->
+<div id="agent-status-bar">
+  <div class="step-pill plan" id="pill-research" style="color:var(--research-color);border-color:var(--research-color);background:rgba(244,114,182,.1)">
+    <div class="step-spinner"></div>🔍 Research
+  </div>
+  <span class="step-separator">‖</span>
+  <div class="step-pill plan" id="pill-strategy" style="color:var(--strategy-color);border-color:var(--strategy-color);background:rgba(167,139,250,.1)">
+    <div class="step-spinner"></div>📋 Strategy
+  </div>
+  <span class="step-separator">→</span>
+  <div class="step-pill draft" id="pill-writer">
+    <div class="step-spinner"></div>✍️ Writer
+  </div>
+  <span class="step-separator">→</span>
+  <div class="step-pill critique" id="pill-quality">
+    <div class="step-spinner"></div>🎯 Quality
+  </div>
+  <span class="step-separator">→</span>
+  <div class="step-pill refine" id="pill-editor">
+    <div class="step-spinner"></div>✨ Editor
+  </div>
+</div>
 
 <!-- ══ CONFIG BAR ══ -->
 <div id="config-bar">
@@ -355,13 +634,79 @@
   </div>
 </div>
 
+<!-- ══ SETTINGS PANEL ══ -->
+<div id="settings-overlay"></div>
+<div id="settings-panel">
+  <div class="settings-header">
+    <h3>⚙️ Script Settings</h3>
+    <button class="close-settings" id="close-settings">×</button>
+  </div>
+
+  <div class="settings-section">
+    <h4>Tone</h4>
+    <div class="radio-group" id="tone-group">
+      <label class="radio-item"><input type="radio" name="tone" value="Professional" checked /><label>Professional</label></label>
+      <label class="radio-item"><input type="radio" name="tone" value="Casual" /><label>Casual</label></label>
+      <label class="radio-item"><input type="radio" name="tone" value="Inspirational" /><label>Inspirational</label></label>
+      <label class="radio-item"><input type="radio" name="tone" value="Academic" /><label>Academic</label></label>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h4>Duration</h4>
+    <div class="radio-group" id="duration-group">
+      <label class="radio-item"><input type="radio" name="duration" value="1 min" checked /><label>1 minute (~130 words)</label></label>
+      <label class="radio-item"><input type="radio" name="duration" value="3 min" /><label>3 minutes (~390 words)</label></label>
+      <label class="radio-item"><input type="radio" name="duration" value="5 min" /><label>5 minutes (~650 words)</label></label>
+      <label class="radio-item"><input type="radio" name="duration" value="10 min" /><label>10 minutes (~1300 words)</label></label>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h4>Audience</h4>
+    <div class="radio-group" id="audience-group">
+      <label class="radio-item"><input type="radio" name="audience" value="General Public" checked /><label>General Public</label></label>
+      <label class="radio-item"><input type="radio" name="audience" value="Students" /><label>Students</label></label>
+      <label class="radio-item"><input type="radio" name="audience" value="Professionals" /><label>Professionals</label></label>
+      <label class="radio-item"><input type="radio" name="audience" value="Experts" /><label>Domain Experts</label></label>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SESSION PANEL ══ -->
+<div id="session-overlay"></div>
+<div id="session-panel">
+  <div class="session-header">
+    <h3>💾 Sessions</h3>
+    <button class="close-settings" id="close-session">×</button>
+  </div>
+  <div class="session-actions">
+    <button class="session-btn" id="new-session-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Session
+    </button>
+    <button class="session-btn" id="save-session-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save Session
+    </button>
+    <button class="session-btn" id="export-session-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export as .txt
+    </button>
+  </div>
+  <div class="session-list">
+    <h4>Saved Sessions</h4>
+    <div id="session-items"></div>
+  </div>
+</div>
+
 <!-- ══ CHAT ══ -->
 <div id="chat">
   <div class="chat-inner" id="chat-inner">
     <div class="welcome" id="welcome">
       <div class="welcome-icon">🎤</div>
-      <h2>Seminar Script Generator</h2>
-      <p>Enter any seminar topic or idea below and receive a polished, natural <strong>one-minute speaking script</strong> ready for live delivery.</p>
+      <h2>Agentic AI Script Generator</h2>
+      <p>Enter any seminar topic and get a polished speaking script. Toggle <strong>🤖 Agentic mode</strong> to activate the <em>Plan → Draft → Critique → Refine</em> pipeline for higher-quality output.</p>
       <div class="chips">
         <span class="chip" onclick="useChip(this)">Introduction to Machine Learning</span>
         <span class="chip" onclick="useChip(this)">The Future of Renewable Energy</span>
@@ -370,6 +715,14 @@
         <span class="chip" onclick="useChip(this)">Mental Health Awareness</span>
         <span class="chip" onclick="useChip(this)">Climate Change Solutions</span>
       </div>
+      <div class="feature-cards">
+        <div class="feature-card"><span>🔍 Research Agent</span>Gathers key facts &amp; talking points about your topic.</div>
+        <div class="feature-card"><span>📋 Strategy Agent</span>Builds the speech outline &amp; structure. Runs in parallel with Research.</div>
+        <div class="feature-card"><span>✍️ Writer Agent</span>Drafts the full script using Research + Strategy output.</div>
+        <div class="feature-card"><span>🎯 Quality Agent</span>Scores the draft and identifies 3 specific weaknesses.</div>
+        <div class="feature-card"><span>✨ Editor Agent</span>Produces the final polished script addressing all feedback.</div>
+        <div class="feature-card"><span>🛠️ Slash Commands</span>/refine, /extend, /outline, /bullet, /critique</div>
+      </div>
     </div>
   </div>
 </div>
@@ -377,149 +730,628 @@
 <!-- ══ INPUT ══ -->
 <div id="input-area">
   <div class="input-wrap">
-    <textarea id="prompt" rows="1" placeholder="Enter a seminar topic or speaking prompt…"></textarea>
-    <button id="send-btn" title="Generate script (Enter)">
+    <textarea id="prompt" rows="1" placeholder="Enter a seminar topic… or type /refine, /extend, /outline, /bullet, /critique"></textarea>
+    <button id="send-btn" title="Generate (Enter)">
       <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
     </button>
   </div>
-  <div class="input-hint">Press <kbd style="background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:4px;font-size:11px;">Enter</kbd> to generate &nbsp;·&nbsp; <kbd style="background:var(--surface2);border:1px solid var(--border);padding:1px 5px;border-radius:4px;font-size:11px;">Shift+Enter</kbd> for new line</div>
+  <div class="input-bottom">
+    <div class="cmd-chips">
+      <span class="cmd-chip" onclick="insertCmd('/refine ')">/refine</span>
+      <span class="cmd-chip" onclick="insertCmd('/extend 3min')">/extend</span>
+      <span class="cmd-chip" onclick="insertCmd('/outline')">/outline</span>
+      <span class="cmd-chip" onclick="insertCmd('/bullet')">/bullet</span>
+      <span class="cmd-chip" onclick="insertCmd('/critique')">/critique</span>
+    </div>
+    <div class="input-hint"><kbd>Enter</kbd> send &nbsp;·&nbsp; <kbd>Shift+Enter</kbd> newline</div>
+  </div>
 </div>
 
 <script>
-  // ── CONFIGURATION (pre-filled; user can override via the config bar) ──
+  // ── CONFIGURATION ──
   const DEFAULT_PROJECT_ID = "703b98ce-fc2d-4314-8bb0-b72f32706d06";
   const DEFAULT_API_KEY    = "EVJCi9uwHT84HkUoEa63gOHRwnFlWfCgjcOx9_dncF_L";
+  const MODEL_ID           = "meta-llama/llama-3-3-70b-instruct";
 
-  const MODEL_ID = "meta-llama/llama-3-3-70b-instruct";
+  const IAM_URL   = "/api/iam";
+  const WX_URL    = "/api/watsonx";
+  // All agentic steps go through the same proven /api/watsonx proxy
 
-  // Always use relative /api/ routes — works on Vercel (production & preview)
-  // and locally via `vercel dev` or `node server.js`
-  const IAM_URL = "/api/iam";
-  const WX_URL  = "/api/watsonx";
+  const SESSIONS_KEY  = "seminar_ai_sessions";
+  const SETTINGS_KEY  = "seminar_ai_settings";
 
   // ── DOM refs ──
-  const chatInner = document.getElementById("chat-inner");
-  const promptEl  = document.getElementById("prompt");
-  const sendBtn   = document.getElementById("send-btn");
-  const clearBtn  = document.getElementById("clear-btn");
-  const cfgProj   = document.getElementById("cfg-proj");
-  const cfgKey    = document.getElementById("cfg-key");
-  const statusDot = document.getElementById("status-dot");
-  const welcome   = document.getElementById("welcome");
+  const chatInner    = document.getElementById("chat-inner");
+  const promptEl     = document.getElementById("prompt");
+  const sendBtn      = document.getElementById("send-btn");
+  const clearBtn     = document.getElementById("clear-btn");
+  const cfgProj      = document.getElementById("cfg-proj");
+  const cfgKey       = document.getElementById("cfg-key");
+  const statusDot    = document.getElementById("status-dot");
+  const welcome      = document.getElementById("welcome");
+  const agentBar     = document.getElementById("agent-status-bar");
+  const agentToggle  = document.getElementById("agent-toggle-input");
+  const toggleLabel  = document.getElementById("toggle-label");
 
-  // ── Init config inputs ──
+  // ── State ──
+  let conversationHistory = [];  // { role, content }[]
+  let cachedToken = null;
+  let tokenExpiry = 0;
+  let lastScript  = "";          // last AI script for slash commands
+
+  // ── Init ──
   cfgProj.value = DEFAULT_PROJECT_ID;
   cfgKey.value  = DEFAULT_API_KEY;
   updateStatusDot();
+  loadSettingsFromStorage();
+  renderSessionList();
 
   cfgProj.addEventListener("input", updateStatusDot);
   cfgKey.addEventListener("input",  updateStatusDot);
 
+  // ── Settings persistence ──
+  function getSettings() {
+    const tone     = document.querySelector('input[name="tone"]:checked')?.value     || "Professional";
+    const duration = document.querySelector('input[name="duration"]:checked')?.value || "1 min";
+    const audience = document.querySelector('input[name="audience"]:checked')?.value || "General Public";
+    return { tone, duration, audience };
+  }
+
+  function saveSettingsToStorage() {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(getSettings()));
+  }
+
+  function loadSettingsFromStorage() {
+    try {
+      const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+      if (s.tone)     { const r = document.querySelector(`input[name="tone"][value="${s.tone}"]`);     if (r) r.checked = true; }
+      if (s.duration) { const r = document.querySelector(`input[name="duration"][value="${s.duration}"]`); if (r) r.checked = true; }
+      if (s.audience) { const r = document.querySelector(`input[name="audience"][value="${s.audience}"]`); if (r) r.checked = true; }
+    } catch(_) {}
+  }
+
+  document.querySelectorAll('input[name="tone"], input[name="duration"], input[name="audience"]')
+    .forEach(r => r.addEventListener("change", saveSettingsToStorage));
+
+  // ── Agentic toggle ──
+  agentToggle.addEventListener("change", () => {
+    const on = agentToggle.checked;
+    toggleLabel.textContent = on ? "🤖 Agentic" : "💬 Basic";
+    toggleLabel.classList.toggle("active", on);
+  });
+
+  // ── Settings panel ──
+  document.getElementById("settings-btn").addEventListener("click", () => {
+    document.getElementById("settings-panel").classList.add("open");
+    document.getElementById("settings-overlay").classList.add("open");
+  });
+  document.getElementById("close-settings").addEventListener("click", closeSettings);
+  document.getElementById("settings-overlay").addEventListener("click", closeSettings);
+  function closeSettings() {
+    document.getElementById("settings-panel").classList.remove("open");
+    document.getElementById("settings-overlay").classList.remove("open");
+  }
+
+  // ── Session panel ──
+  document.getElementById("session-btn").addEventListener("click", () => {
+    renderSessionList();
+    document.getElementById("session-panel").classList.add("open");
+    document.getElementById("session-overlay").classList.add("open");
+  });
+  document.getElementById("close-session").addEventListener("click", closeSession);
+  document.getElementById("session-overlay").addEventListener("click", closeSession);
+  function closeSession() {
+    document.getElementById("session-panel").classList.remove("open");
+    document.getElementById("session-overlay").classList.remove("open");
+  }
+
+  // ── Session manager ──
+  function getSessions() {
+    try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || "{}"); } catch(_) { return {}; }
+  }
+  function saveSessions(obj) {
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(obj));
+  }
+
+  document.getElementById("new-session-btn").addEventListener("click", () => {
+    if (conversationHistory.length > 0) {
+      if (!confirm("Start a new session? Current chat will be lost unless saved.")) return;
+    }
+    conversationHistory = [];
+    lastScript = "";
+    chatInner.innerHTML = "";
+    chatInner.appendChild(welcome);
+    welcome.style.display = "";
+    cachedToken = null; tokenExpiry = 0;
+    closeSession();
+  });
+
+  document.getElementById("save-session-btn").addEventListener("click", () => {
+    if (conversationHistory.length === 0) { alert("Nothing to save yet."); return; }
+    const name = prompt("Session name:", "Session " + new Date().toLocaleDateString()) || "";
+    if (!name.trim()) return;
+    const sessions = getSessions();
+    sessions[name.trim()] = { history: conversationHistory, savedAt: new Date().toISOString() };
+    saveSessions(sessions);
+    renderSessionList();
+    alert("Session saved!");
+  });
+
+  document.getElementById("export-session-btn").addEventListener("click", () => {
+    if (conversationHistory.length === 0) { alert("Nothing to export yet."); return; }
+    let txt = "=== Agentic AI Seminar Script Generator — Session Export ===\n";
+    txt += `Exported: ${new Date().toLocaleString()}\n\n`;
+    for (const msg of conversationHistory) {
+      txt += `--- ${msg.role === "user" ? "YOU" : "AI"} ---\n${msg.content}\n\n`;
+    }
+    const blob = new Blob([txt], { type: "text/plain" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = "seminar-session.txt"; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  function renderSessionList() {
+    const container = document.getElementById("session-items");
+    const sessions  = getSessions();
+    const keys = Object.keys(sessions);
+    if (keys.length === 0) {
+      container.innerHTML = '<p style="color:var(--muted);font-size:12px;">No saved sessions yet.</p>';
+      return;
+    }
+    container.innerHTML = "";
+    keys.reverse().forEach(name => {
+      const s   = sessions[name];
+      const date = new Date(s.savedAt).toLocaleDateString();
+      const div = document.createElement("div");
+      div.className = "session-item";
+      div.innerHTML = `
+        <span class="session-item-name" title="${escHtml(name)}">${escHtml(name)}</span>
+        <span class="session-item-date">${date}</span>
+        <button class="session-del" title="Delete">✕</button>`;
+      div.querySelector(".session-item-name").addEventListener("click", () => loadSession(name, s));
+      div.querySelector(".session-del").addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!confirm(`Delete session "${name}"?`)) return;
+        const ss = getSessions(); delete ss[name]; saveSessions(ss);
+        renderSessionList();
+      });
+      container.appendChild(div);
+    });
+  }
+
+  function loadSession(name, s) {
+    conversationHistory = s.history || [];
+    lastScript = "";
+    chatInner.innerHTML = "";
+    chatInner.appendChild(welcome);
+    welcome.style.display = "none";
+
+    // Re-render messages from history
+    for (const msg of conversationHistory) {
+      if (msg.role === "user") {
+        appendUserMsgRaw(msg.content);
+      } else {
+        lastScript = msg.content;
+        appendAIMsg(msg.content, false);
+      }
+    }
+    closeSession();
+  }
+
+  // ── Status dot ──
   function updateStatusDot() {
     const ok = cfgProj.value.trim() && cfgKey.value.trim();
     statusDot.className = "status-dot" + (ok ? " ok" : " err");
     statusDot.title = ok ? "Configuration ready" : "Missing Project ID or API Key";
   }
 
-  // ── Token cache ──
-  let cachedToken = null;
-  let tokenExpiry = 0;
-
+  // ── IAM token ──
   async function getIAMToken() {
     const now = Date.now();
     if (cachedToken && now < tokenExpiry) return cachedToken;
-
     const apiKey = cfgKey.value.trim();
-    if (!apiKey) throw new Error("IBM API Key is not set. Please enter it in the config bar.");
-
+    if (!apiKey) throw new Error("IBM API Key is not set.");
     const body    = `grant_type=urn%3Aibm%3Aparams%3Aoauth%3Agrant-type%3Aapikey&apikey=${encodeURIComponent(apiKey)}`;
     const headers = { "Content-Type": "application/x-www-form-urlencoded" };
-
     let res;
     try {
       res = await fetch(IAM_URL, { method: "POST", headers, body });
-    } catch (e) {
-      throw new Error(
-        "Network error: could not reach /api/iam.\n\n" +
-        "• On Vercel: make sure the api/ folder is deployed (push to Git and redeploy).\n" +
-        "• Locally: run  node server.js  then open  http://localhost:3000\n" +
-        "• Do NOT open index.html directly as a file:// URL."
-      );
+    } catch(e) {
+      throw new Error("Network error: could not reach /api/iam.\n• Run: node server.js\n• Open: http://localhost:3000");
     }
-
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
-      if (res.status === 400 || res.status === 401) {
-        throw new Error(`Authentication failed (${res.status}): Your IBM API Key appears to be invalid or expired.`);
-      }
-      throw new Error(`IAM token request failed (${res.status}): ${txt.slice(0, 200)}`);
+      if (res.status === 400 || res.status === 401)
+        throw new Error(`Authentication failed (${res.status}): IBM API Key is invalid or expired.`);
+      throw new Error(`IAM token request failed (${res.status}): ${txt.slice(0,200)}`);
     }
-
     const data = await res.json();
-    if (!data.access_token) {
-      throw new Error("IAM response did not contain an access token. Check your API Key.");
-    }
+    if (!data.access_token) throw new Error("IAM response missing access_token. Check your API Key.");
     cachedToken = data.access_token;
     tokenExpiry = now + ((data.expires_in || 3600) - 60) * 1000;
     return cachedToken;
   }
 
-  async function generateScript(topic) {
+  // ── Llama 3 prompt builder (with history) ──
+  function buildLlamaPrompt(systemPrompt, history) {
+    let p = `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n${systemPrompt}<|eot_id|>`;
+    for (const msg of history) {
+      const r = msg.role === "user" ? "user" : "assistant";
+      p += `<|start_header_id|>${r}<|end_header_id|>\n${msg.content}<|eot_id|>`;
+    }
+    p += `<|start_header_id|>assistant<|end_header_id|>\n`;
+    return p;
+  }
+
+  // ── System prompt builder ──
+  function buildSystemPrompt(settings, cmd) {
+    const { tone, duration, audience } = settings;
+    const durationMap = { "1 min": "120-150 words", "3 min": "380-420 words", "5 min": "630-680 words", "10 min": "1280-1320 words" };
+    const wordTarget = durationMap[duration] || "120-150 words";
+
+    if (cmd === "outline") {
+      return `You are a professional speech coach. Generate a structured outline for a seminar script. Include: title, opening hook concept, 3 main talking points with sub-points, transition phrases, and a closing statement concept. Then write the full script beneath the outline. Tone: ${tone}. Audience: ${audience}.`;
+    }
+    if (cmd === "bullet") {
+      return `You are a professional speech coach. Convert the topic into concise bullet-point speaker notes. Each bullet should be one spoken sentence. Include 8-12 bullets covering hook, main points, and close. Tone: ${tone}. Audience: ${audience}.`;
+    }
+    return `You are a professional seminar speech writer. Write polished, engaging seminar speaking scripts. Write in first-person, as if the speaker delivers it live. Tone: ${tone}. Duration: ${duration} (approximately ${wordTarget}). Audience: ${audience}. Use clear transitions, a strong opening hook, a concise body with key points, and a memorable closing. Output only the script text with no extra labels or commentary.`;
+  }
+
+  // ── Slash command parser ──
+  function parseCommand(input) {
+    const t = input.trim();
+    if (t.startsWith("/refine"))   return { cmd: "refine",   args: t.slice(7).trim() };
+    if (t.startsWith("/extend"))   return { cmd: "extend",   args: t.slice(7).trim() || "3min" };
+    if (t.startsWith("/outline"))  return { cmd: "outline",  args: t.slice(8).trim() };
+    if (t.startsWith("/bullet"))   return { cmd: "bullet",   args: t.slice(7).trim() };
+    if (t.startsWith("/critique")) return { cmd: "critique", args: t.slice(9).trim() };
+    return { cmd: null, args: t };
+  }
+
+  function buildUserMessage(cmd, args, settings) {
+    const { tone, duration, audience } = settings;
+    if (cmd === "refine") {
+      if (!lastScript) return { err: "No previous script to refine. Generate a script first." };
+      const instr = args || "improve clarity, flow, and impact";
+      return { msg: `Rewrite and improve the previous script with these instructions: ${instr}. Maintain the same ${tone} tone for ${audience} audience, ${duration} duration.` };
+    }
+    if (cmd === "extend") {
+      if (!lastScript) return { err: "No previous script to extend. Generate a script first." };
+      const target = args.includes("5") ? "5 min" : "3 min";
+      return { msg: `Expand the previous script to a full ${target} version. Add more detail, examples, and depth while keeping the same core message, ${tone} tone, and ${audience} audience.` };
+    }
+    if (cmd === "outline") {
+      return { msg: args ? `Create a full outline then write the complete script on: "${args}"` : `Create a full outline then write the complete script on the topic from our previous conversation.` };
+    }
+    if (cmd === "bullet") {
+      return { msg: args ? `Write bullet-point speaker notes for a seminar on: "${args}"` : `Convert the previous script into bullet-point speaker notes.` };
+    }
+    if (cmd === "critique") {
+      if (!lastScript) return { err: "No previous script to critique. Generate a script first." };
+      return { msg: `Critique the previous script. Identify its 3 main weaknesses, then immediately rewrite an improved version that addresses all of them.` };
+    }
+    return { msg: `Write a ${duration} seminar speaking script on: "${args}"` };
+  }
+
+  // ══════════════════════════════════════════════════════
+  //  MULTI-AGENT SYSTEM
+  //  5 Specialized agents coordinated by an Orchestrator.
+  //  Research + Strategy run in PARALLEL, then Writer,
+  //  Quality, Editor run sequentially.
+  //
+  //  DAG:
+  //    Research ──┐
+  //               ├──► Writer ──► Quality ──► Editor
+  //    Strategy ──┘
+  // ══════════════════════════════════════════════════════
+
+  // ── Agent definitions ──
+  const AGENTS = {
+    research: {
+      id: "research", emoji: "🔍", name: "Research Agent",
+      role: "Topic Researcher", color: "var(--research-color)",
+    },
+    strategy: {
+      id: "strategy", emoji: "📋", name: "Strategy Agent",
+      role: "Speech Strategist", color: "var(--strategy-color)",
+    },
+    writer: {
+      id: "writer", emoji: "✍️", name: "Writer Agent",
+      role: "Script Writer", color: "var(--writer-color)",
+    },
+    quality: {
+      id: "quality", emoji: "🎯", name: "Quality Agent",
+      role: "Quality Reviewer", color: "var(--quality-color)",
+    },
+    editor: {
+      id: "editor", emoji: "✨", name: "Editor Agent",
+      role: "Chief Editor", color: "var(--editor-color)",
+    },
+  };
+
+  // ── Build workspace DOM element ──
+  function createAgentWorkspace() {
+    const ws = document.createElement("div");
+    ws.className = "agent-workspace";
+    ws.id = "agent-workspace-current";
+    ws.innerHTML = `
+      <div class="agent-workspace-header">
+        <div class="agent-workspace-title">
+          🤖 Multi-Agent Workspace
+          <span style="font-size:10px;color:var(--muted);font-weight:400">5 agents · 2 parallel</span>
+        </div>
+        <button class="agent-workspace-toggle" onclick="toggleWorkspace(this)">▾ Collapse</button>
+      </div>
+      <div class="agent-workspace-body">
+        <!-- Row 1: Parallel agents -->
+        <div class="agent-grid">
+          ${makeAgentCard("research", true)}
+          ${makeAgentCard("strategy", true)}
+        </div>
+        <!-- Connector -->
+        <div class="workflow-connector">
+          <div class="connector-line"></div>
+          <span class="connector-arrow">⤵</span>
+          <span style="font-size:10px">Both feed into Writer</span>
+          <span class="connector-arrow">⤵</span>
+          <div class="connector-line"></div>
+        </div>
+        <!-- Row 2: Sequential agents -->
+        <div class="agent-grid">
+          ${makeAgentCard("writer", false)}
+          ${makeAgentCard("quality", false)}
+        </div>
+        <div class="agent-grid">
+          ${makeAgentCard("editor", false, true)}
+        </div>
+        <!-- Final result -->
+        <div class="agent-result" id="agent-result-area" style="display:none">
+          <div class="agent-result-label">
+            ✨ Final Script
+            <div class="result-divider"></div>
+          </div>
+          <div class="agent-script-text" id="agent-final-text"></div>
+          <div class="agent-result-footer" id="agent-result-footer"></div>
+        </div>
+      </div>`;
+    return ws;
+  }
+
+  function makeAgentCard(id, isParallel, fullWidth) {
+    const a = AGENTS[id];
+    return `
+      <div class="agent-card ${id}${fullWidth ? " full-width" : ""}" id="agentcard-${id}">
+        <div class="agent-card-header">
+          <div class="agent-avatar">${a.emoji}</div>
+          <div class="agent-name-row">
+            <div class="agent-name">
+              ${a.name}
+              ${isParallel ? '<span class="parallel-badge">⚡ parallel</span>' : ""}
+            </div>
+            <div class="agent-role">${a.role}</div>
+          </div>
+          <div class="agent-status-badge idle" id="agentstatus-${id}">Idle</div>
+        </div>
+        <div class="agent-output" id="agentout-${id}">
+          <div class="agent-output-text" id="agenttext-${id}"></div>
+        </div>
+      </div>`;
+  }
+
+  function toggleWorkspace(btn) {
+    const body = btn.closest(".agent-workspace").querySelector(".agent-workspace-body");
+    const collapsed = body.style.display === "none";
+    body.style.display = collapsed ? "" : "none";
+    btn.textContent = collapsed ? "▾ Collapse" : "▸ Expand";
+  }
+
+  // ── Update single agent card state ──
+  function setAgentCardState(id, state, outputText) {
+    const card   = document.getElementById("agentcard-"   + id);
+    const badge  = document.getElementById("agentstatus-" + id);
+    const outEl  = document.getElementById("agentout-"    + id);
+    const textEl = document.getElementById("agenttext-"   + id);
+    if (!card) return;
+
+    card.className = card.className.replace(/\b(idle|running|done|error)\b/g, "").trim();
+    card.classList.add(id, state);
+
+    const labels = { idle: "Idle", running: "Running…", done: "Done ✓", error: "Error ✗" };
+    const badgeClasses = { idle: "idle", running: "running", done: "done", error: "error" };
+    badge.className = "agent-status-badge " + (badgeClasses[state] || "idle");
+    badge.innerHTML = state === "running"
+      ? `<div class="badge-spinner"></div>${labels[state]}`
+      : labels[state] || state;
+
+    if (outputText) {
+      textEl.textContent = outputText;
+      outEl.classList.add("visible");
+    }
+    // Update header bar pill
+    updateBarPill(id, state);
+    scrollToBottom();
+  }
+
+  // ── Header status bar pills ──
+  const BAR_PILLS = ["research","strategy","writer","quality","editor"];
+  function updateBarPill(id, state) {
+    const pill = document.getElementById("pill-" + id);
+    if (!pill) return;
+    pill.classList.remove("active","done");
+    if (state === "running") pill.classList.add("active");
+    if (state === "done")    pill.classList.add("done");
+  }
+
+  function showAgentBar() {
+    agentBar.classList.add("visible");
+    BAR_PILLS.forEach(id => {
+      const pill = document.getElementById("pill-" + id);
+      if (pill) pill.classList.remove("active","done");
+    });
+  }
+  function hideAgentBar() {
+    agentBar.classList.remove("visible");
+  }
+
+  // Legacy setAgentStep (used by basic mode fallback)
+  function setAgentStep(step) {}
+
+  // ── Core watsonx call (all agents use this) ──
+  async function wxCall(token, systemPrompt, userMsg, maxTokens) {
     const projectId = cfgProj.value.trim();
-    if (!projectId) throw new Error("IBM Project ID is not set. Please enter it in the config bar.");
-
-    const token = await getIAMToken();
-
-    const systemPrompt = `You are a professional seminar speech writer. When given a topic, you write a polished, engaging, and natural one-minute seminar speaking script. The script must be approximately 120 to 150 words — suitable for exactly one minute of spoken delivery. Write in first-person, as if the speaker is delivering it live. Use clear transitions, a strong opening hook, a concise body with one or two key points, and a memorable closing statement. Output only the script text with no extra labels, headings, or commentary.`;
-
-    const userMessage = `Write a one-minute seminar speaking script on the following topic: "${topic}"`;
-
-    // Llama 3 chat template
     const input =
-      `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n` +
-      `${systemPrompt}<|eot_id|>` +
-      `<|start_header_id|>user<|end_header_id|>\n` +
-      `${userMessage}<|eot_id|>` +
+      `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n${systemPrompt}<|eot_id|>` +
+      `<|start_header_id|>user<|end_header_id|>\n${userMsg}<|eot_id|>` +
       `<|start_header_id|>assistant<|end_header_id|>\n`;
 
-    const body = {
-      model_id: MODEL_ID,
-      project_id: projectId,
-      input,
-      parameters: {
-        decoding_method: "greedy",
-        max_new_tokens: 350,
-        min_new_tokens: 100,
-        stop_sequences: ["<|eot_id|>", "<|end_of_text|>"],
-        repetition_penalty: 1.1
-      }
-    };
-
-    let res;
-    try {
-      res = await fetch(WX_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+    const res = await fetch(WX_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        model_id:   MODEL_ID,
+        project_id: projectId,
+        input,
+        parameters: {
+          decoding_method:    "greedy",
+          max_new_tokens:     maxTokens,
+          min_new_tokens:     20,
+          stop_sequences:     ["<|eot_id|>", "<|end_of_text|>"],
+          repetition_penalty: 1.1,
         },
-        body: JSON.stringify(body)
-      });
-    } catch (networkErr) {
-      throw new Error(
-        "Network error contacting watsonx.ai. Please check your internet connection and try again.\n\n" +
-        "If running from file://, serve the file via a local web server instead."
-      );
-    }
+      }),
+    });
 
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
-      if (res.status === 401) throw new Error("Unauthorized (401): Your IBM credentials may be invalid or have insufficient permissions.");
-      if (res.status === 403) throw new Error("Forbidden (403): Check that your Project ID is correct and the API key has access to watsonx.ai.");
-      if (res.status === 404) throw new Error("Not found (404): The model or endpoint could not be found. Check your Project ID and region.");
-      if (res.status === 429) throw new Error("Rate limited (429): Too many requests. Please wait a moment and try again.");
       let msg = txt.slice(0, 300);
-      try { const j = JSON.parse(txt); msg = j.errors?.[0]?.message || j.message || msg; } catch (_) {}
+      try { const j = JSON.parse(txt); msg = j.errors?.[0]?.message || j.message || msg; } catch(_) {}
+      throw new Error(`watsonx.ai error (${res.status}): ${msg}`);
+    }
+    const data = await res.json();
+    const text = data?.results?.[0]?.generated_text?.trim();
+    if (!text) throw new Error("Model returned an empty response. Please try again.");
+    return text;
+  }
+
+  // ── ORCHESTRATOR: runs 5 agents ──
+  async function runMultiAgentSystem(topic, settings, token, workspaceEl) {
+    const { tone, duration, audience } = settings;
+    const durationMap = { "1 min":"120-150 words","3 min":"380-420 words","5 min":"630-680 words","10 min":"1280-1320 words" };
+    const wordTarget  = durationMap[duration] || "120-150 words";
+    const maxScript   = duration === "10 min" ? 2000 : duration === "5 min" ? 1000 : duration === "3 min" ? 600 : 380;
+
+    // ── Phase 1: Run Research + Strategy IN PARALLEL ──
+    setAgentCardState("research", "running");
+    setAgentCardState("strategy", "running");
+
+    const [research, strategy] = await Promise.all([
+      // Research Agent
+      wxCall(token,
+        `You are a dedicated Research Agent. Your only job is to gather and present the most important facts, statistics, real-world examples, and key talking points about a given topic. Be specific and factual. Format your output as 5-7 concise bullet points. No scripts, no narrative — just raw research material the Writer Agent will use.`,
+        `Research the topic: "${topic}"\nTarget audience: ${audience}\nDuration goal: ${duration}`,
+        280
+      ).then(r => { setAgentCardState("research", "done", r); return r; })
+       .catch(e => { setAgentCardState("research", "error", e.message); throw e; }),
+
+      // Strategy Agent
+      wxCall(token,
+        `You are a dedicated Strategy Agent. Your only job is to create the optimal speech structure for a given topic. Produce a numbered outline: (1) opening hook type, (2-4) key argument points with brief descriptions, (5) closing technique. Be structural, not narrative. No script text.`,
+        `Design the speech structure for: "${topic}"\nTone: ${tone}\nDuration: ${duration}\nAudience: ${audience}`,
+        250
+      ).then(s => { setAgentCardState("strategy", "done", s); return s; })
+       .catch(e => { setAgentCardState("strategy", "error", e.message); throw e; }),
+    ]);
+
+    // ── Phase 2: Writer Agent (uses Research + Strategy) ──
+    setAgentCardState("writer", "running");
+    const draft = await wxCall(token,
+      `You are a dedicated Writer Agent. You receive research material and a structural outline from other agents, and your job is to synthesize them into a polished, engaging seminar script. Write in first-person, as if the speaker delivers it live. Tone: ${tone}. Audience: ${audience}. Target length: ${wordTarget}. Output ONLY the script — no headings, labels, or meta-commentary.`,
+      `RESEARCH MATERIAL (from Research Agent):\n${research}\n\nSPEECH STRUCTURE (from Strategy Agent):\n${strategy}\n\nNow write the full ${duration} seminar script on "${topic}" synthesizing both inputs.`,
+      maxScript
+    ).then(d => { setAgentCardState("writer", "done", d.slice(0, 120) + "…"); return d; })
+     .catch(e => { setAgentCardState("writer", "error", e.message); throw e; });
+
+    // ── Phase 3: Quality Agent (reviews draft) ──
+    setAgentCardState("quality", "running");
+    const qualityReport = await wxCall(token,
+      `You are a dedicated Quality Agent. Review the provided seminar script and produce a quality assessment. Output format:\nSCORE: X/10\nSTRENGTHS:\n• [strength 1]\n• [strength 2]\nWEAKNESSES:\n• [weakness 1]\n• [weakness 2]\n• [weakness 3]\nIMPROVEMENT PRIORITY: [most critical fix]\n\nBe precise and actionable.`,
+      `Review this seminar script:\n\n${draft}\n\nContext: Topic="${topic}", Tone=${tone}, Audience=${audience}, Duration=${duration}`,
+      250
+    ).then(q => { setAgentCardState("quality", "done", q); return q; })
+     .catch(e => { setAgentCardState("quality", "error", e.message); throw e; });
+
+    // ── Phase 4: Editor Agent (final polish) ──
+    setAgentCardState("editor", "running");
+    const finalScript = await wxCall(token,
+      `You are the Chief Editor Agent — the final step in a multi-agent pipeline. You receive a draft script and a quality review from the Quality Agent. Your job is to produce the definitive, publication-ready final script that addresses every weakness identified. Maintain the speaker's voice. Tone: ${tone}. Audience: ${audience}. Target length: ${wordTarget}. Output ONLY the final script — no labels, no commentary.`,
+      `DRAFT SCRIPT (from Writer Agent):\n${draft}\n\nQUALITY REVIEW (from Quality Agent):\n${qualityReport}\n\nProduce the final, polished seminar script on "${topic}" addressing all weaknesses.`,
+      maxScript
+    ).then(f => { setAgentCardState("editor", "done", f.slice(0, 100) + "…"); return f; })
+     .catch(e => { setAgentCardState("editor", "error", e.message); throw e; });
+
+    return { finalScript, research, strategy, draft, qualityReport };
+  }
+
+  // ── Legacy single-pipeline (used when Agentic mode OFF) ──
+  async function runAgenticPipeline(topic, settings, token) {
+    const { tone, duration, audience } = settings;
+    const durationMap = { "1 min":"120-150 words","3 min":"380-420 words","5 min":"630-680 words","10 min":"1280-1320 words" };
+    const wordTarget  = durationMap[duration] || "120-150 words";
+    const maxDraft    = duration === "10 min" ? 2000 : duration === "5 min" ? 1000 : duration === "3 min" ? 600 : 350;
+    const plan = await wxCall(token,
+      `Expert speech coach. Create a structural plan: 4-5 bullet points covering hook, key points, closing. No script text.`,
+      `Plan for: "${topic}"\nTone:${tone}\nDuration:${duration}\nAudience:${audience}`, 220);
+    const draft = await wxCall(token,
+      `Professional speech writer. Write a ${duration} seminar script following the plan. Tone:${tone}. Audience:${audience}. Output only script.`,
+      `Plan:\n${plan}\n\nWrite full script on "${topic}".`, maxDraft);
+    const critique = await wxCall(token,
+      `Speech critic. Identify 3 specific weaknesses. Output only 3 bullet points.`,
+      `Critique:\n\n${draft}`, 180);
+    const refined = await wxCall(token,
+      `Master speech writer. Rewrite addressing all critique points. Output only final script.`,
+      `Script:\n${draft}\n\nCritique:\n${critique}\n\nRewrite.`, maxDraft);
+    return refined;
+  }
+
+  // ── BASIC GENERATE ──
+  async function generateScript(userMsg, settings, token) {
+    const projectId = cfgProj.value.trim();
+    if (!projectId) throw new Error("IBM Project ID is not set.");
+
+    const sysPrompt = buildSystemPrompt(settings, null);
+    const histWithNew = [...conversationHistory, { role: "user", content: userMsg }];
+    const input = buildLlamaPrompt(sysPrompt, histWithNew);
+
+    const body = {
+      model_id: MODEL_ID, project_id: projectId, input,
+      parameters: {
+        decoding_method: "greedy",
+        max_new_tokens: settings.duration === "10 min" ? 2000 : settings.duration === "5 min" ? 1000 : settings.duration === "3 min" ? 600 : 350,
+        min_new_tokens: 80,
+        stop_sequences: ["<|eot_id|>", "<|end_of_text|>"],
+        repetition_penalty: 1.1,
+      },
+    };
+
+    const res = await fetch(WX_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      if (res.status === 401) throw new Error("Unauthorized (401): Check your IBM credentials.");
+      if (res.status === 403) throw new Error("Forbidden (403): Verify your Project ID and API key permissions.");
+      if (res.status === 404) throw new Error("Not found (404): Check your Project ID and region.");
+      if (res.status === 429) throw new Error("Rate limited (429): Please wait and try again.");
+      let msg = txt.slice(0, 300);
+      try { const j = JSON.parse(txt); msg = j.errors?.[0]?.message || j.message || msg; } catch(_) {}
       throw new Error(`watsonx.ai API error (${res.status}): ${msg}`);
     }
 
@@ -531,74 +1363,124 @@
 
   // ── UI helpers ──
   function hideWelcome() {
-    if (welcome) { welcome.style.display = "none"; }
+    if (welcome) welcome.style.display = "none";
   }
-
   function scrollToBottom() {
     const chat = document.getElementById("chat");
     chat.scrollTop = chat.scrollHeight;
   }
 
-  function appendUserMsg(text) {
+  function appendUserMsgRaw(text) {
     hideWelcome();
     const div = document.createElement("div");
     div.className = "msg user";
-    div.innerHTML = `
-      <div class="avatar">👤</div>
-      <div class="bubble">${escHtml(text)}</div>`;
+    div.innerHTML = `<div class="avatar">👤</div><div class="bubble">${escHtml(text)}</div>`;
     chatInner.appendChild(div);
     scrollToBottom();
+  }
+
+  function appendUserMsg(text) {
+    appendUserMsgRaw(text);
   }
 
   function showTyping() {
     const div = document.createElement("div");
-    div.className = "typing";
-    div.id = "typing-indicator";
-    div.innerHTML = `
-      <div class="avatar">🤖</div>
-      <div class="dots">
-        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-      </div>`;
-    chatInner.appendChild(div);
-    scrollToBottom();
+    div.className = "typing"; div.id = "typing-indicator";
+    div.innerHTML = `<div class="avatar">🤖</div><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+    chatInner.appendChild(div); scrollToBottom();
     return div;
   }
-
   function removeTyping() {
     const el = document.getElementById("typing-indicator");
     if (el) el.remove();
   }
 
-  function appendAIMsg(script) {
-    const words = script.trim().split(/\s+/).length;
-    const div = document.createElement("div");
+  function readability(script) {
+    const words = script.trim().split(/\s+/);
+    const avgLen = words.reduce((s, w) => s + w.replace(/[^a-z]/gi, "").length, 0) / words.length;
+    if (avgLen < 4.5) return { label: "Simple",   cls: "simple" };
+    if (avgLen < 5.8) return { label: "Moderate", cls: "moderate" };
+    return { label: "Advanced", cls: "advanced" };
+  }
+
+  function appendAIMsg(script, mode) {
+    const words   = script.trim().split(/\s+/).length;
+    const mins    = (words / 130).toFixed(1);
+    const rd      = readability(script);
+    const div     = document.createElement("div");
     div.className = "msg ai";
+    const badgeHtml = mode === "multi"
+      ? '<div class="agent-badge">🤖 Multi-Agent · Research+Strategy→Writer→Quality→Editor</div>'
+      : mode === "agentic"
+      ? '<div class="agent-badge">✨ Agentic · Plan→Draft→Critique→Refine</div>'
+      : "";
     div.innerHTML = `
       <div class="avatar">🤖</div>
       <div class="bubble">
+        ${badgeHtml}
         <div class="script-text">${escHtml(script)}</div>
         <div class="bubble-footer">
-          <span class="word-count">~${words} words · ~${Math.round(words / 130)} min read aloud</span>
-          <button class="copy-btn" onclick="copyScript(this)">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-            Copy Script
-          </button>
+          <div class="meta-info">
+            <span class="meta-tag">Words: <span>${words}</span></span>
+            <span class="meta-tag">Time: <span>~${mins} min</span></span>
+            <span class="readability ${rd.cls}">${rd.label}</span>
+          </div>
+          <div class="bubble-actions">
+            <button class="action-btn" onclick="downloadScript(this)">⬇ Download</button>
+            <button class="action-btn" onclick="copyScript(this)">⎘ Copy</button>
+          </div>
         </div>
       </div>`;
     chatInner.appendChild(div);
     scrollToBottom();
   }
 
+  // Show the final result inside the workspace panel
+  function showWorkspaceResult(workspaceEl, script) {
+    const resultArea  = workspaceEl.querySelector("#agent-result-area");
+    const finalText   = workspaceEl.querySelector("#agent-final-text");
+    const footer      = workspaceEl.querySelector("#agent-result-footer");
+    if (!resultArea) return;
+
+    const words = script.trim().split(/\s+/).length;
+    const mins  = (words / 130).toFixed(1);
+    const rd    = readability(script);
+
+    finalText.textContent = script;
+    footer.innerHTML = `
+      <div class="meta-info" style="display:flex;gap:10px;flex-wrap:wrap;">
+        <span class="meta-tag">Words: <span>${words}</span></span>
+        <span class="meta-tag">Time: <span>~${mins} min</span></span>
+        <span class="readability ${rd.cls}">${rd.label}</span>
+      </div>
+      <div class="bubble-actions" style="display:flex;gap:5px;">
+        <button class="action-btn" onclick="downloadWorkspaceScript(this)">⬇ Download</button>
+        <button class="action-btn" onclick="copyWorkspaceScript(this)">⎘ Copy</button>
+      </div>`;
+    resultArea.style.display = "";
+    scrollToBottom();
+  }
+
+  function copyWorkspaceScript(btn) {
+    const text = btn.closest(".agent-workspace").querySelector(".agent-script-text").innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.classList.add("copied"); btn.textContent = "✓ Copied!";
+      setTimeout(() => { btn.classList.remove("copied"); btn.textContent = "⎘ Copy"; }, 2000);
+    });
+  }
+  function downloadWorkspaceScript(btn) {
+    const text = btn.closest(".agent-workspace").querySelector(".agent-script-text").innerText;
+    const blob = new Blob([text], { type: "text/plain" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = "seminar-script.txt"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function appendErrorMsg(message) {
     const div = document.createElement("div");
     div.className = "msg-error";
-    div.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-      <span>${escHtml(message)}</span>`;
+    div.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>${escHtml(message)}</span>`;
     chatInner.appendChild(div);
     scrollToBottom();
   }
@@ -610,29 +1492,27 @@
   function copyScript(btn) {
     const text = btn.closest(".bubble").querySelector(".script-text").innerText;
     navigator.clipboard.writeText(text).then(() => {
-      btn.classList.add("copied");
-      btn.textContent = "✓ Copied!";
-      setTimeout(() => {
-        btn.classList.remove("copied");
-        btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy Script`;
-      }, 2000);
-    }).catch(() => {
-      btn.textContent = "Failed";
-      setTimeout(() => { btn.textContent = "Copy Script"; }, 2000);
-    });
+      btn.classList.add("copied"); btn.textContent = "✓ Copied!";
+      setTimeout(() => { btn.classList.remove("copied"); btn.textContent = "⎘ Copy"; }, 2000);
+    }).catch(() => { btn.textContent = "Failed"; setTimeout(() => { btn.textContent = "⎘ Copy"; }, 2000); });
   }
 
-  function useChip(el) {
-    promptEl.value = el.textContent.trim();
-    promptEl.focus();
-    autoResize();
+  function downloadScript(btn) {
+    const text = btn.closest(".bubble").querySelector(".script-text").innerText;
+    const blob = new Blob([text], { type: "text/plain" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = "seminar-script.txt"; a.click();
+    URL.revokeObjectURL(url);
   }
+
+  function useChip(el) { promptEl.value = el.textContent.trim(); promptEl.focus(); autoResize(); }
+  function insertCmd(cmd) { promptEl.value = cmd; promptEl.focus(); autoResize(); }
 
   function autoResize() {
     promptEl.style.height = "auto";
-    promptEl.style.height = Math.min(promptEl.scrollHeight, 160) + "px";
+    promptEl.style.height = Math.min(promptEl.scrollHeight, 140) + "px";
   }
-
   function setLoading(state) {
     sendBtn.disabled = state;
     promptEl.disabled = state;
@@ -640,59 +1520,122 @@
 
   // ── Main send flow ──
   async function handleSend() {
-    const topic = promptEl.value.trim();
-    if (!topic) {
-      promptEl.style.borderColor = "var(--error)";
-      setTimeout(() => { promptEl.style.borderColor = ""; }, 1000);
+    const raw = promptEl.value.trim();
+    if (!raw) {
+      promptEl.style.boxShadow = "0 0 0 2px var(--error)";
+      setTimeout(() => { promptEl.style.boxShadow = ""; }, 900);
       return;
     }
-
     if (!cfgProj.value.trim() || !cfgKey.value.trim()) {
-      appendErrorMsg("Please enter your IBM Project ID and API Key in the configuration bar at the top.");
+      appendErrorMsg("Please enter your IBM Project ID and API Key in the configuration bar.");
       return;
     }
 
-    appendUserMsg(topic);
+    const { cmd, args } = parseCommand(raw);
+    const settings = getSettings();
+    const { msg, err } = buildUserMessage(cmd, args, settings);
+
+    if (err) { appendErrorMsg(err); return; }
+
+    appendUserMsg(raw);
     promptEl.value = "";
     autoResize();
     setLoading(true);
-    const typingEl = showTyping();
 
-    try {
-      const script = await generateScript(topic);
-      removeTyping();
-      appendAIMsg(script);
-    } catch (err) {
-      removeTyping();
-      let msg = err.message || "An unexpected error occurred.";
-      if (!navigator.onLine) msg = "No internet connection. Please check your network and try again.";
-      appendErrorMsg(msg);
-    } finally {
-      setLoading(false);
-      promptEl.focus();
+    // Multi-agent mode: no slash cmd + agentic toggle ON
+    const useMultiAgent = agentToggle.checked && !cmd;
+
+    if (useMultiAgent) {
+      showAgentBar();
+      // Insert workspace into chat
+      const ws = createAgentWorkspace();
+      hideWelcome();
+      chatInner.appendChild(ws);
+      scrollToBottom();
+
+      try {
+        const token = await getIAMToken();
+        const { finalScript, research, strategy, draft, qualityReport } =
+          await runMultiAgentSystem(msg, settings, token, ws);
+
+        hideAgentBar();
+
+        // Show result inside workspace
+        showWorkspaceResult(ws, finalScript);
+
+        // Update conversation history
+        conversationHistory.push({ role: "user",      content: msg });
+        conversationHistory.push({ role: "assistant", content: finalScript });
+        lastScript = finalScript;
+
+      } catch(e) {
+        hideAgentBar();
+        appendErrorMsg(e.message || "An unexpected error occurred.");
+      } finally {
+        setLoading(false);
+        promptEl.focus();
+      }
+
+    } else {
+      // Basic or slash-command mode
+      showTyping();
+      try {
+        const token = await getIAMToken();
+        let script;
+
+        if (agentToggle.checked && !cmd) {
+          script = await runAgenticPipeline(msg, settings, token);
+        } else {
+          if (cmd === "outline") settings._cmd = "outline";
+          if (cmd === "bullet")  settings._cmd = "bullet";
+          script = await generateScript(msg, settings, token);
+        }
+
+        removeTyping();
+        conversationHistory.push({ role: "user",      content: msg });
+        conversationHistory.push({ role: "assistant", content: script });
+        lastScript = script;
+
+        appendAIMsg(script, agentToggle.checked && !cmd ? "agentic" : null);
+
+      } catch(e) {
+        removeTyping();
+        let errMsg = e.message || "An unexpected error occurred.";
+        if (!navigator.onLine) errMsg = "No internet connection detected.";
+        appendErrorMsg(errMsg);
+      } finally {
+        setLoading(false);
+        promptEl.focus();
+      }
     }
   }
 
   // ── Clear chat ──
   clearBtn.addEventListener("click", () => {
+    if (conversationHistory.length > 0 && !confirm("Clear all messages?")) return;
+    conversationHistory = [];
+    lastScript = "";
     chatInner.innerHTML = "";
     chatInner.appendChild(welcome);
     welcome.style.display = "";
-    cachedToken = null;
-    tokenExpiry = 0;
+    cachedToken = null; tokenExpiry = 0;
+    hideAgentBar();
+    // Reset all agent card states
+    Object.keys(AGENTS).forEach(id => {
+      const card = document.getElementById("agentcard-" + id);
+      if (card) setAgentCardState(id, "idle");
+    });
   });
 
   // ── Input events ──
   sendBtn.addEventListener("click", handleSend);
-
   promptEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   });
-
   promptEl.addEventListener("input", autoResize);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { closeSettings(); closeSession(); }
+  });
 </script>
 </body>
 </html>

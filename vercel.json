@@ -1,1 +1,16 @@
-{}
+{
+  "functions": {
+    "api/iam.js": {
+      "memory": 128,
+      "maxDuration": 10
+    },
+    "api/watsonx.js": {
+      "memory": 128,
+      "maxDuration": 30
+    },
+    "api/agent.js": {
+      "memory": 128,
+      "maxDuration": 60
+    }
+  }
+}
